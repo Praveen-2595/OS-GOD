@@ -1,0 +1,211 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# OS GOD — config.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: "1.0"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TTS — Edge-TTS gives a natural Jarvis voice (en-US-GuyNeural).
+# Requires internet. Falls back to pyttsx3 automatically when offline.
+# ─────────────────────────────────────────────────────────────────────────────
+tts:
+  engine: edge_tts
+  voice: en-US-GuyNeural
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Persistent memory — SQLite DB for cross-session recall.
+# DB file is created automatically; never committed to git.
+# ─────────────────────────────────────────────────────────────────────────────
+memory:
+  enabled: true
+  db_path: data/jarvis_memory.db
+  recent_messages: 10
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HUD overlay — always-on-top transparent window (top-right corner).
+# Alt+H to toggle visibility. Click-through: clicks pass to apps underneath.
+# ─────────────────────────────────────────────────────────────────────────────
+overlay:
+  enabled: false            # standalone dashboard (launch_dashboard.py) is now the primary UI
+  mode: command_center      # full interactive window (replaces old hud)
+  start_minimized: false
+  position: right-center
+  update_interval: 30       # seconds between orbit data refreshes
+  hotkey: alt+h
+
+brain:
+  enabled: true
+  model: claude-haiku-4-5-20251001
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Orbit (productivity state). The Jarvis brain fetches gravity meter, tasks and
+# goals from this API and injects them into the system prompt so it can coach
+# proactively. Fails soft if Orbit is offline. See core/orbit_reader.py.
+# ─────────────────────────────────────────────────────────────────────────────
+orbit:
+  base_url: https://orbit-black.vercel.app
+  # The bearer token is read from the ORBIT_TOKEN environment variable.
+  # `token:` here is an optional fallback — leave it unset so the secret
+  # stays out of source control.
+  # token: <ORBIT_TOKEN env var preferred>
+  cache_ttl: 60
+  enabled: true
+
+defaults: 
+  volume: 50
+  sound: null
+  wallpaper: null
+
+trigger_words:
+  - system
+  - nyra
+  - jarvis
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Wake word (offline, open source — openWakeWord). No API key needed. Uses the
+# bundled "hey_jarvis" model. Runs always-on in a background thread; on a hit it
+# captures a command and routes it through the brain. See core/wake_word.py.
+# ─────────────────────────────────────────────────────────────────────────────
+wakeword:
+  enabled: true
+  keyword: hey_jarvis        # openWakeWord has no standalone "jarvis" model — use hey_jarvis
+  sensitivity: 0.35          # lowered from 0.4 to catch quieter "jarvis" pronunciation
+  # Frames with RMS below this value are zeroed before scoring — prevents quiet
+  # ambient noise or low-level music bleed from accumulating false wake scores.
+  noise_gate_rms: 150        # lowered from 200 to allow more audio through before scoring
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AI brain (Jarvis layer). When enabled AND ANTHROPIC_API_KEY is set, free-form
+# natural language is routed through Claude with tool-use. Otherwise OS GOD falls
+# back to the offline fuzzy parser automatically.
+# ─────────────────────────────────────────────────────────────────────────────
+
+modes:
+
+  alpha state:
+    sound: assets/sounds/alpha.wav
+    wallpaper: "3715870843"
+    volume: 40
+    apps:
+      - opera gx
+      - notion
+      - pomo
+      # Quest Tracker — launches server.py, opens http://localhost:3000
+    websites:
+      - https://music.youtube.com
+      - https://chat.openai.com
+      - https://orbit-black.vercel.app/index.html
+      - https://leetcode.com
+      - https://www.apnacollege.in
+    close:
+      - whatsapp
+      - discord
+      - notepad
+      - claude
+
+  zen state:
+    sound: assets/sounds/zen.wav
+    wallpaper: "3581326940"
+    volume: 30
+    apps:
+      - opera gx
+      - notion
+      - pomo
+      - system       # Quest Tracker — launches server.py, opens http://localhost:3000
+    websites:
+      - https://music.youtube.com
+      - https://chat.openai.com
+      - https://orbit-black.vercel.app/index.html
+      - https://gemini.google.com
+    close:
+      - whatsapp
+      - discord
+      - notepad
+      - claude
+
+  render state:
+    wallpaper: "2983030715"
+    volume: 60
+    apps:
+      - opera gx
+      - after effects
+      - discord
+    websites:
+      - https://music.youtube.com
+      - https://www.youtube.com/results?search_query=after+effects+tutorial
+    close:
+      - whatsapp
+      - notion
+      - notepad
+      - claude
+
+  dj pawnin state:
+    sound: assets/sounds/dj.wav
+    wallpaper: "2242388122"
+    volume: 80
+    apps:
+      - opera gx
+    websites:
+      - https://www.google.com/search?q=IPL
+      - https://www.hotstar.com
+      - https://music.youtube.com/playlist?list=PLf6wwr2YCKEDmRZ4yOUTLOS8ju-byzRpQ
+    close:
+      - notion
+      - whatsapp
+      - notepad
+      - after effects
+      - claude
+    # ── DJ Hotkey Tracks ──────────────────────────────────────────────────────
+    # Drop your .wav files in assets/sounds/
+    # CTRL+1 plays track1, CTRL+2 plays track2, etc.
+    # CTRL+0 stops current track
+    # CTRL+RIGHT next track, CTRL+LEFT previous track
+    # NOTE: only list tracks that exist in assets/sounds/ — missing files warn at
+    # DJ start and fail the smoke test. Add track4/track5 .wav files here as you make them.
+    tracks:
+      - assets/sounds/dj_track1.wav
+      - assets/sounds/dj_track2.wav
+      - assets/sounds/dj_track3.wav
+
+  gaming state:
+    wallpaper: "3700380883"
+    volume: 75
+    apps:
+      - opera gx
+      - discord
+    websites:
+      - https://music.youtube.com
+    close:
+      - notion
+      - whatsapp
+      - notepad
+      - after effects
+      - claude
+
+  shutdown:
+    shutdown: true
+
+  gg:
+    sound: assets/sounds/gg_cut.wav
+
+  developer mode:
+    sound: assets/sounds/dev.wav
+    wallpaper: "3242756527"
+    volume: 35
+    apps:
+      - opera gx
+      - claude ai
+      - vs code
+    websites:
+      - https://chat.openai.com
+      - https://claude.ai
+      - https://orbit-black.vercel.app/index.html
+      - https://github.com
+      - https://stackoverflow.com
+      - https://leetcode.com
+    close:
+      - whatsapp
+      - discord
+      - notion
+      - notepad
+      - after effects

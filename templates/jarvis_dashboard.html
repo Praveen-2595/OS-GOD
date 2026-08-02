@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS // OS GOD</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+/* ── Reset & base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:    #020818;
+  --blue:    #0ea5e9;
+  --cyan:    #06d6f5;
+  --deep:    #0369a1;
+  --txt:     #e0f2fe;
+  --muted:   #475569;
+  --surface: rgba(14,165,233,0.05);
+  --border:  rgba(6,214,245,0.18);
+  --safe:    #22c55e;
+  --rising:  #84cc16;
+  --warn:    #f59e0b;
+  --danger:  #f97316;
+  --crit:    #ef4444;
+}
+
+html, body {
+  height: 100%;
+  background: var(--navy);
+  color: var(--txt);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+/* ── Grid lines — perspective HUD graph paper ─────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(6,214,245,0.04) 0px, rgba(6,214,245,0.04) 1px, transparent 1px, transparent 48px),
+    repeating-linear-gradient(90deg,  rgba(6,214,245,0.04) 0px, rgba(6,214,245,0.04) 1px, transparent 1px, transparent 48px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Layout grid ──────────────────────────────────────────────────────────── */
+#app {
+  display: grid;
+  grid-template-rows: 52px 1fr auto auto;
+  grid-template-columns: 1fr 320px 1fr;
+  height: 100vh;
+  gap: 8px;
+  padding: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Panel base — glass effect ────────────────────────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  padding: 14px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Scanline overlay */
+.panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(6,214,245,0.022) 3px,
+    rgba(6,214,245,0.022) 4px
+  );
+  background-size: 100% 4px;
+  animation: scan 12s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+@keyframes scan {
+  from { background-position: 0 0; }
+  to   { background-position: 0 400px; }
+}
+
+/* Corner bracket decorations — L-shaped reticle corners in cyan */
+.panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  background:
+    /* top-left horizontal */
+    linear-gradient(var(--cyan), var(--cyan))   0    0   / 14px 1.5px no-repeat,
+    /* top-left vertical */
+    linear-gradient(var(--cyan), var(--cyan))   0    0   / 1.5px 14px no-repeat,
+    /* top-right horizontal */
+    linear-gradient(var(--cyan), var(--cyan))  100%  0   / 14px 1.5px no-repeat,
+    /* top-right vertical */
+    linear-gradient(var(--cyan), var(--cyan))  100%  0   / 1.5px 14px no-repeat,
+    /* bottom-left horizontal */
+    linear-gradient(var(--cyan), var(--cyan))   0   100% / 14px 1.5px no-repeat,
+    /* bottom-left vertical */
+    linear-gradient(var(--cyan), var(--cyan))   0   100% / 1.5px 14px no-repeat,
+    /* bottom-right horizontal */
+    linear-gradient(var(--cyan), var(--cyan))  100% 100% / 14px 1.5px no-repeat,
+    /* bottom-right vertical */
+    linear-gradient(var(--cyan), var(--cyan))  100% 100% / 1.5px 14px no-repeat;
+  opacity: 0.45;
+}
+
+.panel > * { position: relative; z-index: 1; }
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+#header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+#header .logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 0.15em;
+  text-shadow: 0 0 12px rgba(6,214,245,0.6);
+}
+
+#header .clock {
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+#header .status-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.mode-badge {
+  color: var(--cyan);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.brain-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--safe);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.dot.offline { background: var(--crit); animation: none; }
+@keyframes pulse-dot {
+  0%,100% { opacity:1; transform:scale(1); box-shadow:0 0 0 0 rgba(34,197,94,0.4); }
+  50%      { opacity:0.8; transform:scale(1.2); box-shadow:0 0 0 4px rgba(34,197,94,0); }
+}
+
+#signal-lost {
+  display: none;
+  color: var(--crit);
+  font-size: 11px;
+  animation: blink-warn 1s step-end infinite;
+}
+@keyframes blink-warn { 50% { opacity: 0; } }
+
+/* ── Center — Gravity ring + radial glow ─────────────────────────────────── */
+#center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  /* Radial glow as a light source behind the torus */
+  background:
+    radial-gradient(circle at center, rgba(14,165,233,0.10) 0%, transparent 68%),
+    var(--surface);
+}
+
+#torus-canvas {
+  display: block;
+  border-radius: 8px;
+}
+
+.gravity-score {
+  font-family: 'Orbitron', monospace;
+  font-size: 64px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--blue);
+  text-shadow: 0 0 24px rgba(14,165,233,0.7);
+  transition: color 0.8s, text-shadow 0.8s;
+}
+
+.gravity-band {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--safe);
+  transition: color 0.8s;
+}
+
+/* ── Goals panel ──────────────────────────────────────────────────────────── */
+#goals { grid-column: 1; }
+.panel-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.goal-item { margin-bottom: 12px; }
+.goal-header { display:flex; justify-content:space-between; margin-bottom:4px; }
+.goal-title { font-size:12px; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:65%; }
+.goal-pct   { font-size:12px; color:var(--cyan); }
+.goal-deadline { font-size:10px; color:var(--muted); margin-bottom:4px; }
+.progress-track {
+  height: 4px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--blue);
+  width: 0%;
+  transition: width 1s cubic-bezier(0.4,0,0.2,1), background 0.8s;
+}
+
+/* ── Tasks panel ──────────────────────────────────────────────────────────── */
+#tasks { grid-column: 3; }
+
+.task-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14,165,233,0.15);
+  color: var(--cyan);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.task-group { margin-bottom: 10px; }
+.task-group-label {
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: var(--txt);
+  line-height: 1.4;
+}
+.task-check {
+  width: 12px; height: 12px;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.task-scroll {
+  max-height: calc(100% - 36px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ── Response panel ───────────────────────────────────────────────────────── */
+#response {
+  grid-column: 1 / -1;
+  padding: 12px 16px;
+  min-height: 52px;
+}
+
+.response-label {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.response-text {
+  font-size: 13px;
+  color: var(--txt);
+  line-height: 1.5;
+}
+.response-text .cursor::after {
+  content: '█';
+  font-size: 11px;
+  color: var(--cyan);
+  animation: blink-cur 1s step-end infinite;
+}
+@keyframes blink-cur { 50% { opacity: 0; } }
+
+/* ── Quick commands ───────────────────────────────────────────────────────── */
+#commands {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  position: relative;
+}
+
+.cmd-btn {
+  flex: 1;
+  min-width: 120px;
+  background: rgba(14,165,233,0.07);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--cyan);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.cmd-btn:hover  { background: rgba(14,165,233,0.15); border-color: var(--cyan); }
+.cmd-btn:active { transform: scale(0.97); }
+.cmd-btn.sent   { background: rgba(34,197,94,0.15); border-color: var(--safe); color: var(--safe); }
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── Mobile/iPad portrait ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  body { overflow: auto; }
+  #app {
+    grid-template-rows: auto auto auto auto auto auto;
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  #header  { grid-column: 1; }
+  #center  { grid-column: 1; padding: 24px 0; }
+  #goals   { grid-column: 1; }
+  #tasks   { grid-column: 1; }
+  #response  { grid-column: 1; }
+  #commands  { grid-column: 1; }
+  .gravity-score { font-size: 80px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Starfield canvas — fixed behind everything, z-index below body::before grid -->
+<canvas id="stars" style="position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none"></canvas>
+
+<div id="app">
+
+  <!-- Header -->
+  <header id="header" class="panel">
+    <div class="logo">JARVIS // OS GOD</div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="status-bar">
+      <span id="signal-lost">⚠ SIGNAL LOST</span>
+      <span class="mode-badge" id="mode-badge">—</span>
+      <div class="brain-status">
+        <div class="dot" id="brain-dot"></div>
+        <span id="brain-label">BRAIN</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Goals -->
+  <section id="goals" class="panel">
+    <div class="panel-title">// Active Goals</div>
+    <div id="goals-list"><span style="color:var(--muted)">Loading...</span></div>
+  </section>
+
+  <!-- Center: torus + gravity -->
+  <section id="center" class="panel">
+    <canvas id="torus-canvas" width="240" height="240"></canvas>
+    <div class="gravity-score" id="gravity-score">—</div>
+    <div class="gravity-band" id="gravity-band">INITIALIZING</div>
+  </section>
+
+  <!-- Tasks -->
+  <section id="tasks" class="panel">
+    <div class="panel-title">
+      // Pending Tasks
+      <span class="task-count" id="task-count">0</span>
+    </div>
+    <div class="task-scroll" id="tasks-list"><span style="color:var(--muted)">Loading...</span></div>
+  </section>
+
+  <!-- Last response -->
+  <section id="response" class="panel">
+    <div class="response-label">// Last Jarvis Response</div>
+    <div class="response-text" id="response-text">
+      <span id="response-content">Awaiting input...</span><span class="cursor"></span>
+    </div>
+  </section>
+
+  <!-- Quick commands -->
+  <div id="commands">
+    <button class="cmd-btn" onclick="sendCmd('orbit status')">Orbit Status</button>
+    <button class="cmd-btn" onclick="sendCmd('activate alpha state')">Alpha Mode</button>
+    <button class="cmd-btn" onclick="sendCmd('activate zen state')">Zen Mode</button>
+    <button class="cmd-btn" onclick="sendCmd('activate gaming state')">Gaming Mode</button>
+    <button class="cmd-btn" onclick="sendCmd('what is pending')">What\'s Pending</button>
+    <button class="cmd-btn" onclick="sendCmd('close everything')">Close All</button>
+  </div>
+
+</div>
+
+<script>
+const TOKEN = 'pawnin2025';
+const API   = (path) => `${path}?token=${TOKEN}`;
+
+// ── Starfield ─────────────────────────────────────────────────────────────────
+// Pure Canvas 2D — 150 stars, slow drift + sine-wave twinkle.
+// Throttled to ~30 fps so it doesn't compete with the Three.js torus on iPad.
+(function initStars() {
+  const canvas = document.getElementById('stars');
+  const ctx    = canvas.getContext('2d');
+  const N      = 150;
+  let W, H, stars;
+  let lastFrame = 0;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function mkStar() {
+    return {
+      x:    Math.random() * W,
+      y:    Math.random() * H,
+      r:    Math.random() * 0.9 + 0.3,      // 0.3–1.2 px
+      vx:   (Math.random() - 0.5) * 0.06,   // slow horizontal drift
+      vy:   (Math.random() - 0.5) * 0.04,   // slow vertical drift
+      base: Math.random() * 0.5 + 0.2,      // base opacity 0.2–0.7
+      phase: Math.random() * Math.PI * 2,   // twinkle phase offset
+      freq:  Math.random() * 0.0008 + 0.0004, // twinkle frequency
+    };
+  }
+
+  stars = Array.from({ length: N }, mkStar);
+
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    if (ts - lastFrame < 33) return;   // ~30 fps cap
+    lastFrame = ts;
+
+    ctx.clearRect(0, 0, W, H);
+    for (const s of stars) {
+      s.x += s.vx;
+      s.y += s.vy;
+      // Wrap at edges
+      if (s.x < 0) s.x += W;
+      if (s.x > W) s.x -= W;
+      if (s.y < 0) s.y += H;
+      if (s.y > H) s.y -= H;
+
+      const alpha = s.base + Math.sin(ts * s.freq + s.phase) * 0.2;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(224,242,254,${alpha.toFixed(3)})`;
+      ctx.fill();
+    }
+  }
+  requestAnimationFrame(frame);
+})();
+
+// ── Band colours ──────────────────────────────────────────────────────────────
+const BAND_COLOR = {
+  safe:     '#22c55e',
+  rising:   '#84cc16',
+  warning:  '#f59e0b',
+  danger:   '#f97316',
+  critical: '#ef4444',
+};
+const TORUS_COLOR = {
+  safe:     0x0ea5e9,
+  rising:   0x0ea5e9,
+  warning:  0xf59e0b,
+  danger:   0xf97316,
+  critical: 0xef4444,
+};
+
+// ── Three.js torus ────────────────────────────────────────────────────────────
+let torusMesh;
+(function initThree() {
+  const canvas   = document.getElementById('torus-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setSize(240, 240);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  const scene  = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+  camera.position.z = 3.5;
+
+  const geo = new THREE.TorusGeometry(1.1, 0.38, 18, 80);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x0ea5e9, wireframe: true });
+  torusMesh = new THREE.Mesh(geo, mat);
+  scene.add(torusMesh);
+
+  // Faint outer glow ring
+  const geoOuter = new THREE.TorusGeometry(1.35, 0.04, 8, 80);
+  const matOuter = new THREE.MeshBasicMaterial({ color: 0x06d6f5, transparent: true, opacity: 0.3 });
+  scene.add(new THREE.Mesh(geoOuter, matOuter));
+
+  function animate() {
+    requestAnimationFrame(animate);
+    torusMesh.rotation.y += 0.007;
+    torusMesh.rotation.x  = Math.sin(Date.now() * 0.0008) * 0.25;
+    renderer.render(scene, camera);
+  }
+  animate();
+})();
+
+function setTorusColor(band) {
+  if (torusMesh) {
+    torusMesh.material.color.setHex(TORUS_COLOR[band] || 0x0ea5e9);
+  }
+}
+
+// ── Clock ─────────────────────────────────────────────────────────────────────
+function tickClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-US', { hour12: false });
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ── Counter animation ─────────────────────────────────────────────────────────
+function countTo(el, target, duration) {
+  const start = parseInt(el.textContent) || 0;
+  if (start === target) return;
+  const t0 = performance.now();
+  function step(now) {
+    const p = Math.min((now - t0) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(start + (target - start) * ease);
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ── Days left ─────────────────────────────────────────────────────────────────
+function daysLeft(deadline) {
+  if (!deadline) return '';
+  const d     = new Date(deadline);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const diff = Math.round((d - today) / 86400000);
+  if (diff > 0)  return `${diff}d left`;
+  if (diff === 0) return 'due today';
+  return `${Math.abs(diff)}d overdue`;
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+function renderGoals(goals, band) {
+  const el    = document.getElementById('goals-list');
+  const color = BAND_COLOR[band] || '#0ea5e9';
+  if (!goals || goals.length === 0) {
+    el.innerHTML = '<span style="color:var(--muted)">No active goals.</span>';
+    return;
+  }
+  el.innerHTML = goals.map(g => {
+    const pct = g.completionPct || 0;
+    const dl  = daysLeft(g.deadline);
+    return `
+    <div class="goal-item">
+      <div class="goal-header">
+        <span class="goal-title" title="${g.title}">${g.title}</span>
+        <span class="goal-pct">${pct}%</span>
+      </div>
+      ${dl ? `<div class="goal-deadline">${g.deadline} · ${dl}</div>` : ''}
+      <div class="progress-track">
+        <div class="progress-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTasks(tasks, pendingCount) {
+  const countEl = document.getElementById('task-count');
+  countTo(countEl, pendingCount || 0, 600);
+
+  const el = document.getElementById('tasks-list');
+  if (!tasks || tasks.length === 0) {
+    el.innerHTML = '<span style="color:var(--muted)">No pending tasks.</span>';
+    return;
+  }
+  const groups = {};
+  tasks.forEach(t => {
+    const g = t.list || 'other';
+    (groups[g] = groups[g] || []).push(t);
+  });
+  el.innerHTML = Object.entries(groups).map(([grp, items]) => `
+    <div class="task-group">
+      <div class="task-group-label">${grp}</div>
+      ${items.map(t => `
+        <div class="task-item">
+          <div class="task-check"></div>
+          <span>${t.text || ''}</span>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function renderGravity(score, band) {
+  const scoreEl = document.getElementById('gravity-score');
+  const bandEl  = document.getElementById('gravity-band');
+
+  countTo(scoreEl, score || 0, 800);
+
+  const color = BAND_COLOR[band] || '#0ea5e9';
+  scoreEl.style.color      = color;
+  scoreEl.style.textShadow = `0 0 28px ${color}88`;
+  bandEl.textContent = (band || 'unknown').toUpperCase();
+  bandEl.style.color = color;
+
+  // Update torus and radial glow colour to match band
+  setTorusColor(band);
+  const glowRgb = band === 'warning'  ? '245,158,11'
+                : band === 'danger'   ? '249,115,22'
+                : band === 'critical' ? '239,68,68'
+                : '14,165,233';
+  document.getElementById('center').style.background =
+    `radial-gradient(circle at center, rgba(${glowRgb},0.12) 0%, transparent 68%), var(--surface)`;
+}
+
+// ── Response history ──────────────────────────────────────────────────────────
+const _responses = [];
+function pushResponse(text) {
+  if (!text || text === _responses[_responses.length - 1]) return;
+  _responses.push(text);
+  if (_responses.length > 3) _responses.shift();
+  document.getElementById('response-content').textContent = text;
+}
+
+// ── Orbit data ────────────────────────────────────────────────────────────────
+async function fetchOrbit() {
+  try {
+    const res  = await fetch(API('/api/orbit'));
+    const data = await res.json();
+    document.getElementById('signal-lost').style.display = 'none';
+    if (!data.ok) return;
+
+    renderGravity(data.score, (data.band || '').toLowerCase());
+    renderGoals(data.goals, (data.band || '').toLowerCase());
+    renderTasks(data.tasks, data.pendingCount);
+  } catch {
+    document.getElementById('signal-lost').style.display = 'inline';
+  }
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+async function fetchStatus() {
+  try {
+    const res  = await fetch(API('/status'));
+    const data = await res.json();
+
+    const mode = data.current_mode || '—';
+    document.getElementById('mode-badge').textContent = mode.toUpperCase();
+    document.getElementById('brain-dot').className    = 'dot';
+    document.getElementById('brain-label').textContent = 'BRAIN';
+  } catch {
+    document.getElementById('brain-dot').className    = 'dot offline';
+    document.getElementById('brain-label').textContent = 'OFFLINE';
+  }
+}
+
+// ── Quick commands ────────────────────────────────────────────────────────────
+async function sendCmd(text) {
+  const btns = document.querySelectorAll('.cmd-btn');
+  let btn = null;
+  btns.forEach(b => {
+    if ((b.getAttribute('onclick') || '').includes(text.split(' ')[0])) btn = b;
+  });
+
+  if (btn) {
+    btn.classList.add('sent');
+    const orig = btn.textContent;
+    btn.textContent = 'SENT ✓';
+    setTimeout(() => { btn.classList.remove('sent'); btn.textContent = orig; }, 1500);
+  }
+
+  try {
+    const res  = await fetch('/command', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Token': TOKEN },
+      body:    JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    if (data.response) pushResponse(data.response);
+    setTimeout(fetchOrbit, 3000);
+  } catch { /* fail soft */ }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+fetchOrbit();
+fetchStatus();
+setInterval(fetchOrbit,  30000);
+setInterval(fetchStatus, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# OS GOD — requirements.txt
+# Run: pip install -r requirements.txt
+#
+# NOTE: faster-whisper handles offline voice recognition (see below). It runs
+# Whisper locally via CTranslate2 — far more accurate than the old Vosk-small
+# model, still fully offline, and needs NO torch (no numba/llvmlite either).
+# First run downloads the ~145 MB "base.en" model to the HuggingFace cache.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Core
+PyYAML==6.0.3
+psutil==7.2.2
+RapidFuzz==3.14.5
+loguru==0.7.3
+Flask==3.1.3
+
+# AI / LLM brain (natural-language understanding)
+# Requires ANTHROPIC_API_KEY in the environment. If unset, OS GOD falls back
+# to the offline fuzzy parser automatically (hybrid mode).
+# Unpinned on purpose: pull a current SDK that supports the latest Claude models.
+anthropic
+
+# Voice recognition (offline, Whisper via CTranslate2)
+# ctranslate2 pinned because cp314 wheel availability is delicate on Python 3.14.
+faster-whisper==1.2.1
+ctranslate2==4.8.0
+sounddevice==0.5.5
+
+# App / window control
+pywin32==311
+pynput==1.8.1
+
+# Audio feedback — Edge-TTS (natural neural voice, needs internet) with
+# pyttsx3 as the offline fallback (robotic, always available).
+edge-tts==7.2.8
+pyttsx3==2.99
+
+# HUD overlay (native Windows always-on-top transparent window)
+PyQt6
+
+# System volume control
+pycaw==20251023
+comtypes==1.4.16
+
+# Wake word (offline, open source — no API key). Pulls in onnxruntime as the
+# inference backend (the project already ships onnxruntime).
+openwakeword
+
+# Browser automation (voice-driven browser control via brain tool)
+pyautogui
+pygetwindow
+
+# Packaging
+pyinstaller==6.20.0
+pyinstaller-hooks-contrib==2026.4
+
+# Utilities
+requests==2.33.1
+psutil==7.2.2

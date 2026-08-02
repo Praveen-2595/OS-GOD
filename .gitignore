@@ -1,0 +1,40 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build outputs
+build/
+dist/
+*.exe
+
+# PyInstaller
+*.spec
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / personal
+config.local.yaml
+.env
+.env.*
+!.env.example
+
+# Persistent memory DB (user data — not committed)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+*.db
+*.db-shm
+*.db-wal
+mode_history.csv
+
+# Generated personal audio
+assets/system_voice/
